@@ -5,6 +5,7 @@ const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
+<<<<<<< HEAD
   // role: { 
   //   type: String, 
   //   enum: ['admin', 'hq_staff', 'field_engineer', 'manager','employee'],
@@ -16,6 +17,13 @@ role: {
    enum: ['admin', 'manager', 'hq', 'supervisor', 'employee'], default: 'employee' },
 department: { type: mongoose.Schema.Types.ObjectId, ref: 'Department' },
 assignedProjects: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Project' }],
+=======
+  role: { 
+    type: String, 
+    enum: ['admin', 'hq_staff', 'field_engineer', 'manager'],
+    default: 'hq_staff'
+  },
+>>>>>>> 7a1e57a (added)
   unit: { type: String, default: 'Headquarters' }
 }, { timestamps: true });
 
@@ -26,5 +34,7 @@ userSchema.methods.matchPassword = async function(enteredPassword) {
 
 module.exports = mongoose.model('User', userSchema);
 
+<<<<<<< HEAD
 
 
+=======
