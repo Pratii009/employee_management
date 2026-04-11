@@ -5,11 +5,17 @@ const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  role: { 
-    type: String, 
-    enum: ['admin', 'hq_staff', 'field_engineer', 'manager'],
-    default: 'hq_staff'
-  },
+  // role: { 
+  //   type: String, 
+  //   enum: ['admin', 'hq_staff', 'field_engineer', 'manager','employee'],
+  //   default: 'hq_staff'
+  // },
+  // Add to your existing User schema:
+role: { 
+  type: String,
+   enum: ['admin', 'manager', 'hq', 'supervisor', 'employee'], default: 'employee' },
+department: { type: mongoose.Schema.Types.ObjectId, ref: 'Department' },
+assignedProjects: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Project' }],
   unit: { type: String, default: 'Headquarters' }
 }, { timestamps: true });
 
@@ -19,3 +25,6 @@ userSchema.methods.matchPassword = async function(enteredPassword) {
 };
 
 module.exports = mongoose.model('User', userSchema);
+
+
+
