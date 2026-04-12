@@ -122,4 +122,18 @@ async function addSampleProjects() {
   }
 }
 
+// Sample team members for managers
+const sampleTeam = async () => {
+  const managers = await User.find({ role: 'manager' });
+  if (managers.length > 0) {
+    await TeamMember.insertMany([
+      { name: 'John HQ Staff', role: 'hq', progress: 85, managerId: managers[0]._id },
+      { name: 'Sarah Supervisor', role: 'supervisor', progress: 60, managerId: managers[0]._id },
+      { name: 'Mike Field Engineer', role: 'field-engineer', progress: 45, managerId: managers[0]._id }
+    ]);
+    console.log('✅ Sample team members added!');
+  }
+};
+sampleTeam();
+
 seedUsers();
