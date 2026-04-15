@@ -36,10 +36,9 @@
     transform: rotate(360deg);
   }
 }
-<<<<<<< HEAD
-=======
 
->>>>>>> 7a1e57a (added)
+
+
 .App {
   text-align: center;
 }
@@ -69,7 +68,7 @@ button {
 
 button:hover {
   background: #21a9c2;
-
+}
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;

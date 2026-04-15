@@ -2,21 +2,20 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const User = require('./models/User');
 const Department = require('./models/Department');
-const Project = require('./models/Project');  // ✅ ADDED
+const Project = require('./models/Project');
+const TeamMember = require('./models/TeamMember');  // 👈 ADD THIS
 require('dotenv').config();
 
 mongoose.connect(process.env.MONGO_URI);
 
-async function seedUsers() {
+// ✅ FIXED: Proper async seedUsers with bcrypt & exists check
+const seedUsers = async () => {
   try {
-    // Delete old users (KEEP your logic)
-    await User.deleteMany({ role: { $in: ['admin', 'manager'] } });
-    
-    // Create fresh hashed users (KEEP your logic)
+    // Hash passwords first
     const adminPass = await bcrypt.hash('admin123', 12);
     const managerPass = await bcrypt.hash('manager123', 12);
-    
-    await User.insertMany([
+
+    const users = [
       { 
         name: 'Super Admin', 
         email: 'admin@brahmaputra.gov.in', 
@@ -26,49 +25,54 @@ async function seedUsers() {
       },
       { 
         name: 'Project Manager', 
-        email: 'manager@brahmaputra.gov.in', 
+        email: 'manager1@projects.gov.in',  // Fixed email
         password: managerPass, 
         role: 'manager', 
         unit: 'Division A' 
       }
-    ]);
-    
-    console.log('✅ Admin/manager seeded with HASHED passwords');
-
-    // Your existing departments (KEEP)
-    const govtDepts = [
-      'Ministry of Home Affairs', 'Ministry of Finance', 'Ministry of Defence',
-      'Ministry of Agriculture', 'Ministry of Health', 'Ministry of Education',
-      'Ministry of Commerce', 'Ministry of Railways', 'Ministry of Power',
-      'Ministry of Road Transport', 'Ministry of Housing', 'Ministry of Water Resources'
     ];
 
-    console.log('🌟 Seeding Government Departments...');
-    for (let deptName of govtDepts) {
-      await Department.findOneAndUpdate(
-        { name: deptName },
-        { name: deptName, description: `${deptName} Projects` },
-        { upsert: true }
-      );
-      console.log(`✅ ${deptName}`);
+    // ✅ SAFE: Check exists before create
+    for (let userData of users) {
+      const existing = await User.findOne({ email: userData.email });
+      if (!existing) {
+        const user = new User(userData);
+        await user.save();
+        console.log(`✅ Created: ${userData.email}`);
+      } else {
+        console.log(`⏭️ Skip: ${userData.email} already exists`);
+      }
     }
-
-    // ✅ NEW: Add Sample Projects (AFTER departments)
-    console.log('🚀 Adding Sample Projects...');
-    await addSampleProjects();
-
-    console.log('🎉 COMPLETE SEED FINISHED!');
-    process.exit(0);
+    console.log('✅ Users seeded safely!');
   } catch (err) {
-    console.error('Seed error:', err);
-    process.exit(1);
+    console.error('User seed error:', err);
   }
-}
+};
 
-// ✅ NEW FUNCTION - Sample Projects for existing departments
-async function addSampleProjects() {
+// ✅ Departments (your code - already safe)
+const seedDepartments = async () => {
+  const govtDepts = [
+    'Ministry of Home Affairs', 'Ministry of Finance', 'Ministry of Defence',
+    'Ministry of Agriculture', 'Ministry of Health', 'Ministry of Education',
+    'Ministry of Commerce', 'Ministry of Railways', 'Ministry of Power',
+    'Ministry of Road Transport', 'Ministry of Housing', 'Ministry of Water Resources'
+  ];
+
+  console.log('🌟 Seeding Government Departments...');
+  for (let deptName of govtDepts) {
+    await Department.findOneAndUpdate(
+      { name: deptName },
+      { name: deptName, description: `${deptName} Projects` },
+      { upsert: true }
+    );
+    console.log(`✅ ${deptName}`);
+  }
+};
+
+// ✅ Projects (your code - already safe)
+const addSampleProjects = async () => {
   try {
-    const departments = await Department.find({}).limit(4);  // Use first 4 depts
+    const departments = await Department.find({}).limit(4);
     
     const sampleProjects = [
       {
@@ -102,7 +106,7 @@ async function addSampleProjects() {
     ];
 
     for (let projData of sampleProjects) {
-      if (projData.departmentId) {  // ✅ Safety check
+      if (projData.departmentId) {
         const existing = await Project.findOne({ 
           name: projData.name, 
           departmentId: projData.departmentId 
@@ -112,7 +116,7 @@ async function addSampleProjects() {
           await project.save();
           console.log(`✅ Added: ${projData.name} → ${projData.status}`);
         } else {
-          console.log(`⏭️ Skip: ${projData.name} (already exists)`);
+          console.log(`⏭️ Skip: ${projData.name}`);
         }
       }
     }
@@ -120,20 +124,79 @@ async function addSampleProjects() {
   } catch (err) {
     console.error('Projects seed error:', err);
   }
-}
+};
 
-// Sample team members for managers
-const sampleTeam = async () => {
-  const managers = await User.find({ role: 'manager' });
-  if (managers.length > 0) {
-    await TeamMember.insertMany([
-      { name: 'John HQ Staff', role: 'hq', progress: 85, managerId: managers[0]._id },
-      { name: 'Sarah Supervisor', role: 'supervisor', progress: 60, managerId: managers[0]._id },
-      { name: 'Mike Field Engineer', role: 'field-engineer', progress: 45, managerId: managers[0]._id }
-    ]);
-    console.log('✅ Sample team members added!');
+// ✅ NEW: Safe Team Members (won't delete on restart)
+const seedTeamMembers = async () => {
+  try {
+    const managers = await User.find({ role: 'manager' });
+    if (managers.length === 0) {
+      console.log('⚠️ No managers found - skipping team members');
+      return;
+    }
+
+    const sampleTeam = [
+      { 
+        name: 'John HQ Staff', 
+        email: 'john@hq.gov.in',
+        role: 'hq', 
+        progress: 85, 
+        managerId: managers[0]._id,
+        kpi: { fileDisposalRate: 85, physicalProgress: 75 },
+        suggestion: 'Excellent file clearance rate'
+      },
+      { 
+        name: 'Sarah Supervisor', 
+        email: 'sarah@projects.gov.in',
+        role: 'supervisor', 
+        progress: 60, 
+        managerId: managers[0]._id,
+        kpi: { fileDisposalRate: 70, physicalProgress: 60 },
+        suggestion: 'Good progress, focus on deadlines'
+      },
+      { 
+        name: 'Mike Field Engineer', 
+        email: 'mike@field.gov.in',
+        role: 'field-engineer', 
+        progress: 45, 
+        managerId: managers[0]._id,
+        kpi: { fileDisposalRate: 50, physicalProgress: 45 },
+        suggestion: 'Improve survey accuracy'
+      }
+    ];
+
+    for (let memberData of sampleTeam) {
+      const existing = await TeamMember.findOne({ email: memberData.email });
+      if (!existing) {
+        const member = new TeamMember(memberData);
+        await member.save();
+        console.log(`✅ Created team member: ${memberData.name}`);
+      } else {
+        console.log(`⏭️ Skip team member: ${memberData.name}`);
+      }
+    }
+    console.log('✅ Team members seeded safely!');
+  } catch (err) {
+    console.error('Team members seed error:', err);
   }
 };
-sampleTeam();
 
-seedUsers();
+// ✅ MAIN SEED FUNCTION - Runs everything safely
+const seedAll = async () => {
+  try {
+    console.log('🚀 Starting SAFE seed (no deletes!)...');
+    
+    await seedDepartments();
+    await seedUsers();
+    await addSampleProjects();
+    await seedTeamMembers();
+    
+    console.log('🎉 COMPLETE SEED FINISHED - Data persists on restart!');
+    process.exit(0);
+  } catch (err) {
+    console.error('Seed error:', err);
+    process.exit(1);
+  }
+};
+
+seedAll();
