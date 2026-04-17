@@ -21,10 +21,15 @@
 // module.exports = mongoose.model('TeamMember', teamMemberSchema);
 
 const mongoose = require('mongoose');
+
 const teamMemberSchema = new mongoose.Schema({
   name: String,
   email: String,
-  role: { type: String, enum: ['hq', 'supervisor', 'field-engineer', 'technician'] },
+  role: {
+    type: String,
+    enum: ['hq', 'supervisor', 'employee', 'field_engineer', 'technician'],
+    required: true
+  },
   progress: { type: Number, min: 0, max: 100 },
   managerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   projects: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Project' }],
@@ -34,4 +39,7 @@ const teamMemberSchema = new mongoose.Schema({
     field: { surveyAccuracy: Number, physicalProgress: Number }
   }
 });
+
+
+
 module.exports = mongoose.model('TeamMember', teamMemberSchema);

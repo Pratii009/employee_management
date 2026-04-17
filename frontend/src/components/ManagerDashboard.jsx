@@ -8,7 +8,17 @@ const ManagerDashboard = () => {
   const [activeSection, setActiveSection] = useState('dashboard');
   const [data, setData] = useState({ projects: [], teamMembers: [], stats: {}, manager: {} });
   const [selectedMember, setSelectedMember] = useState(null);
-  const [newMember, setNewMember] = useState({ name: '', email: '', role: 'hq', progress: 0 });
+ const [newMember, setNewMember] = useState({
+  name: '',
+  email: '',
+  role: 'employee',
+  unit: '',
+  departmentId: '',
+  projectId: '',
+  phone: '',
+  progress: 0,
+  suggestion: ''
+});
   const [kpis, setKpis] = useState({ fileDisposalRate: 0, physicalProgress: 0, suggestion: '' });
   const [darkMode, setDarkMode] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -47,9 +57,9 @@ const ManagerDashboard = () => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
-      await axios.post('http://localhost:5000/api/manager/teammembers', newMember, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await axios.post('http://localhost:5000/api/manager/add-member', newMember, {
+  headers: { Authorization: `Bearer ${token}` }
+});
       setRefreshKey((prev) => prev + 1);
       setNewMember({ name: '', email: '', role: 'hq', progress: 0 });
       document.getElementById('add-member-modal').close();

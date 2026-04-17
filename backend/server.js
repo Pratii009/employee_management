@@ -24,6 +24,7 @@ app.use('/api/tasks', require('./routes/tasks'));
 
 // Add after your existing routes:
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/member', require('./routes/member'));
 
 // Seed departments on startup (optional - run once)
 //app.post('/api/admin/seed-departments', require('./routes/admin').seedDepartments);

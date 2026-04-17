@@ -3,36 +3,62 @@ const bcrypt = require('bcryptjs');
 const User = require('./models/User');
 const Department = require('./models/Department');
 const Project = require('./models/Project');
-const TeamMember = require('./models/TeamMember');  // 👈 ADD THIS
+const TeamMember = require('./models/TeamMember');
 require('dotenv').config();
 
 mongoose.connect(process.env.MONGO_URI);
 
-// ✅ FIXED: Proper async seedUsers with bcrypt & exists check
 const seedUsers = async () => {
   try {
-    // Hash passwords first
     const adminPass = await bcrypt.hash('admin123', 12);
     const managerPass = await bcrypt.hash('manager123', 12);
+    const memberPass = await bcrypt.hash('member123', 12);
 
     const users = [
-      { 
-        name: 'Super Admin', 
-        email: 'admin@brahmaputra.gov.in', 
-        password: adminPass, 
-        role: 'admin', 
-        unit: 'HQ' 
+      {
+        name: 'Super Admin',
+        email: 'admin@brahmaputra.gov.in',
+        password: adminPass,
+        role: 'admin',
+        unit: 'HQ'
       },
-      { 
-        name: 'Project Manager', 
-        email: 'manager1@projects.gov.in',  // Fixed email
-        password: managerPass, 
-        role: 'manager', 
-        unit: 'Division A' 
+      {
+        name: 'Project Manager',
+        email: 'manager1@projects.gov.in',
+        password: managerPass,
+        role: 'manager',
+        unit: 'Division A'
+      },
+      {
+        name: 'HQ Staff',
+        email: 'hq@projects.gov.in',
+        password: memberPass,
+        role: 'hq',
+        unit: 'HQ'
+      },
+      {
+        name: 'Supervisor One',
+        email: 'supervisor@projects.gov.in',
+        password: memberPass,
+        role: 'supervisor',
+        unit: 'Field Division'
+      },
+      {
+        name: 'Employee One',
+        email: 'employee@projects.gov.in',
+        password: memberPass,
+        role: 'employee',
+        unit: 'Division A'
+      },
+      {
+        name: 'Field Engineer One',
+        email: 'engineer@projects.gov.in',
+        password: memberPass,
+        role: 'field_engineer',
+        unit: 'Site Office'
       }
     ];
 
-    // ✅ SAFE: Check exists before create
     for (let userData of users) {
       const existing = await User.findOne({ email: userData.email });
       if (!existing) {
@@ -43,6 +69,7 @@ const seedUsers = async () => {
         console.log(`⏭️ Skip: ${userData.email} already exists`);
       }
     }
+
     console.log('✅ Users seeded safely!');
   } catch (err) {
     console.error('User seed error:', err);
