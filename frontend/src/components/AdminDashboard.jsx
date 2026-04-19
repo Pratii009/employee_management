@@ -180,9 +180,9 @@ const AdminDashboard = () => {
         </nav>
 
         <div className="absolute bottom-6 left-4 right-4 space-y-3">
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/20">
-            <p className="text-xs text-gray-300 text-center">v2.0</p>
-          </div>
+          {/* <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/20">
+             <p className="text-xs text-gray-300 text-center">v2.0</p> 
+          </div> */}
           <button
             onClick={handleLogout}
             className="w-full px-4 py-3 rounded-2xl font-medium text-sm bg-red-500/20 text-red-100 border border-red-300/20 hover:bg-red-500/30 hover:text-white transition-all"

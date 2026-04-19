@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const workEvidenceSchema = new mongoose.Schema(
   {
-    taskId: { type: mongoose.Schema.Types.ObjectId, ref: 'MemberTask', required: true },
+    taskId: { type: mongoose.Schema.Types.ObjectId, ref: 'Task', required: true },
     uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     title: { type: String, required: true, trim: true },
     notes: { type: String, default: '' },

@@ -8,30 +8,40 @@ const ManagerDashboard = () => {
   const [activeSection, setActiveSection] = useState('dashboard');
   const [data, setData] = useState({ projects: [], teamMembers: [], stats: {}, manager: {} });
   const [selectedMember, setSelectedMember] = useState(null);
- const [newMember, setNewMember] = useState({
-  name: '',
-  email: '',
-  role: 'employee',
-  unit: '',
-  departmentId: '',
-  projectId: '',
-  phone: '',
-  progress: 0,
-  suggestion: ''
-});
+  const [newMember, setNewMember] = useState({
+    name: '',
+    email: '',
+    role: 'employee',
+    unit: '',
+    departmentId: '',
+    projectId: '',
+    phone: '',
+    progress: 0,
+    suggestion: ''
+  });
   const [kpis, setKpis] = useState({ fileDisposalRate: 0, physicalProgress: 0, suggestion: '' });
   const [darkMode, setDarkMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
   const [kpiModalOpen, setKpiModalOpen] = useState(false);
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [taskForm, setTaskForm] = useState({
+    title: '',
+    description: '',
+    weekStart: '',
+    weekEnd: '',
+    memberId: ''
+  });
+  const [taskData, setTaskData] = useState({ tasks: [], summary: {} });
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, [refreshKey]);
-
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', darkMode);
-  }, [darkMode]);
+  const [memberDetailsOpen, setMemberDetailsOpen] = useState(false);
+  const [memberDetailsLoading, setMemberDetailsLoading] = useState(false);
+  const [memberDetails, setMemberDetails] = useState({
+    member: null,
+    tasks: [],
+    evidences: [],
+    avgProgress: 0
+  });
 
   const fetchDashboardData = async () => {
     try {
@@ -53,15 +63,62 @@ const ManagerDashboard = () => {
     }
   };
 
+  const fetchTaskData = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get('http://localhost:5000/api/tasks/manager', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setTaskData(res.data);
+    } catch (err) {
+      console.error(err.response?.data || err.message);
+    }
+  };
+
+  const fetchMemberDetails = async (memberId) => {
+    try {
+      setMemberDetailsLoading(true);
+      const token = localStorage.getItem('token');
+      const res = await axios.get(`http://localhost:5000/api/manager/teammembers/${memberId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setMemberDetails(res.data);
+      setMemberDetailsOpen(true);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to load member details');
+    } finally {
+      setMemberDetailsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+    fetchTaskData();
+  }, [refreshKey]);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', darkMode);
+  }, [darkMode]);
+
   const handleAddMember = async (e) => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
       await axios.post('http://localhost:5000/api/manager/add-member', newMember, {
-  headers: { Authorization: `Bearer ${token}` }
-});
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setRefreshKey((prev) => prev + 1);
-      setNewMember({ name: '', email: '', role: 'hq', progress: 0 });
+      setNewMember({
+        name: '',
+        email: '',
+        role: 'hq',
+        unit: '',
+        departmentId: '',
+        projectId: '',
+        phone: '',
+        progress: 0,
+        suggestion: ''
+      });
       document.getElementById('add-member-modal').close();
       alert('✅ Member added successfully!');
     } catch (err) {
@@ -75,9 +132,7 @@ const ManagerDashboard = () => {
       const token = localStorage.getItem('token');
       await axios.put(
         `http://localhost:5000/api/manager/teammembers/${selectedMember._id}`,
-        {
-          ...kpis
-        },
+        { ...kpis },
         {
           headers: { Authorization: `Bearer ${token}` }
         }
@@ -112,14 +167,25 @@ const ManagerDashboard = () => {
     }
   };
 
+  const handleAssignTask = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post('http://localhost:5000/api/tasks/assign', taskForm, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setTaskForm({ title: '', description: '', weekStart: '', weekEnd: '', memberId: '' });
+      setShowTaskModal(false);
+      setRefreshKey((prev) => prev + 1);
+      alert('✅ Task assigned successfully!');
+    } catch (err) {
+      alert('Error: ' + (err.response?.data?.error || 'Failed to assign task'));
+    }
+  };
+
   const handleLogout = () => {
     localStorage.clear();
     window.location.href = '/login';
-  };
-
-  const handleProfileOpen = () => {
-    setProfileOpen(true);
-    setActiveSection('profile');
   };
 
   if (loading) {
@@ -136,8 +202,6 @@ const ManagerDashboard = () => {
 
   const managerProject = data.manager?.projectId;
   const managerDepartment = data.manager?.departmentId;
-
-  
 
   return (
     <div
@@ -200,7 +264,13 @@ const ManagerDashboard = () => {
                 darkMode
                   ? 'bg-white/5 border border-white/10 text-gray-100 hover:bg-white/15 hover:border-white/30 hover:text-white'
                   : 'bg-white/5 border border-white/10 text-gray-100 hover:bg-white/15 hover:border-white/30 hover:text-white'
-              } ${activeSection === item.id ? (darkMode ? 'bg-white/20 ring-2 ring-white/30 scale-105' : 'bg-white/20 ring-2 ring-white/30 scale-105') : ''}`}
+              } ${
+                activeSection === item.id
+                  ? darkMode
+                    ? 'bg-white/20 ring-2 ring-white/30 scale-105'
+                    : 'bg-white/20 ring-2 ring-white/30 scale-105'
+                  : ''
+              }`}
             >
               <span className="text-lg">{item.icon}</span>
               <span>{item.label}</span>
@@ -257,32 +327,17 @@ const ManagerDashboard = () => {
           {activeSection === 'dashboard' && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 max-w-7xl mx-auto">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <motion.div
-                  className={`backdrop-blur-sm p-8 rounded-2xl shadow-xl border hover:shadow-2xl ${
-                    darkMode ? 'bg-gray-800/50 border-gray-700/50' : 'bg-white/80 border'
-                  }`}
-                  whileHover={{ scale: 1.02 }}
-                >
+                <motion.div className={`backdrop-blur-sm p-8 rounded-2xl shadow-xl border hover:shadow-2xl ${darkMode ? 'bg-gray-800/50 border-gray-700/50' : 'bg-white/80 border'}`} whileHover={{ scale: 1.02 }}>
                   <h3 className="text-4xl font-bold text-indigo-400">{data.stats?.projects || 0}</h3>
                   <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} text-lg mt-1`}>My Projects</p>
                 </motion.div>
 
-                <motion.div
-                  className={`backdrop-blur-sm p-8 rounded-2xl shadow-xl border hover:shadow-2xl ${
-                    darkMode ? 'bg-gray-800/50 border-gray-700/50' : 'bg-white/80 border'
-                  }`}
-                  whileHover={{ scale: 1.02 }}
-                >
+                <motion.div className={`backdrop-blur-sm p-8 rounded-2xl shadow-xl border hover:shadow-2xl ${darkMode ? 'bg-gray-800/50 border-gray-700/50' : 'bg-white/80 border'}`} whileHover={{ scale: 1.02 }}>
                   <h3 className="text-4xl font-bold text-green-400">{data.stats?.teamMembers || 0}</h3>
                   <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} text-lg mt-1`}>Team Members</p>
                 </motion.div>
 
-                <motion.div
-                  className={`backdrop-blur-sm p-8 rounded-2xl shadow-xl border hover:shadow-2xl ${
-                    darkMode ? 'bg-gray-800/50 border-gray-700/50' : 'bg-white/80 border'
-                  }`}
-                  whileHover={{ scale: 1.02 }}
-                >
+                <motion.div className={`backdrop-blur-sm p-8 rounded-2xl shadow-xl border hover:shadow-2xl ${darkMode ? 'bg-gray-800/50 border-gray-700/50' : 'bg-white/80 border'}`} whileHover={{ scale: 1.02 }}>
                   <h3 className="text-4xl font-bold text-yellow-400">{data.stats?.avgProgress || 0}</h3>
                   <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} text-lg mt-1`}>Avg Performance</p>
                 </motion.div>
@@ -298,34 +353,18 @@ const ManagerDashboard = () => {
                   data.projects.map((project) => (
                     <motion.div
                       key={project._id}
-                      className={`backdrop-blur-sm p-6 rounded-2xl shadow-xl border hover:shadow-2xl ${
-                        darkMode ? 'bg-gray-800/50 border-gray-700/50' : 'bg-white/80 border'
-                      }`}
+                      className={`backdrop-blur-sm p-6 rounded-2xl shadow-xl border hover:shadow-2xl ${darkMode ? 'bg-gray-800/50 border-gray-700/50' : 'bg-white/80 border'}`}
                       whileHover={{ scale: 1.02 }}
                     >
-                      <h3 className={`text-xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                        {project.name}
-                      </h3>
-                      <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-4`}>
-                        {project.description || 'No description'}
-                      </p>
-                      <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} text-sm`}>
-                        Department: {project.department?.name || 'NA'}
-                      </p>
-                      <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} text-sm`}>
-                        Status: {project.status || 'Planning'}
-                      </p>
-                      <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} text-sm`}>
-                        Budget: ₹{(project.budget || 0).toLocaleString()}
-                      </p>
+                      <h3 className={`text-xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>{project.name}</h3>
+                      <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-4`}>{project.description || 'No description'}</p>
+                      <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} text-sm`}>Department: {project.department?.name || 'NA'}</p>
+                      <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} text-sm`}>Status: {project.status || 'Planning'}</p>
+                      <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} text-sm`}>Budget: ₹{(project.budget || 0).toLocaleString()}</p>
                     </motion.div>
                   ))
                 ) : (
-                  <div
-                    className={`backdrop-blur-sm p-12 rounded-2xl border text-center col-span-full ${
-                      darkMode ? 'bg-gray-800/50 border-gray-700/50' : 'bg-white/80'
-                    }`}
-                  >
+                  <div className={`backdrop-blur-sm p-12 rounded-2xl border text-center col-span-full ${darkMode ? 'bg-gray-800/50 border-gray-700/50' : 'bg-white/80'}`}>
                     <p className={darkMode ? 'text-gray-400' : 'text-gray-500'}>No projects assigned yet. Contact admin.</p>
                   </div>
                 )}
@@ -335,17 +374,25 @@ const ManagerDashboard = () => {
 
           {activeSection === 'team' && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-7xl mx-auto">
-              <div className="flex justify-between items-center mb-8">
+              <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
                 <h2 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Team Management</h2>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  className={`px-6 py-3 rounded-xl font-semibold shadow-lg ${
-                    darkMode ? 'bg-indigo-600/90 text-white hover:bg-indigo-700/90' : 'bg-indigo-600 text-white'
-                  }`}
-                  onClick={() => document.getElementById('add-member-modal').showModal()}
-                >
-                  Add Member
-                </motion.button>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowTaskModal(true)}
+                    className="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-semibold shadow-lg"
+                  >
+                    Assign Weekly Task
+                  </button>
+
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    className={`px-6 py-3 rounded-xl font-semibold shadow-lg ${darkMode ? 'bg-indigo-600/90 text-white hover:bg-indigo-700/90' : 'bg-indigo-600 text-white'}`}
+                    onClick={() => document.getElementById('add-member-modal').showModal()}
+                  >
+                    Add Member
+                  </motion.button>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -353,32 +400,19 @@ const ManagerDashboard = () => {
                   data.teamMembers.map((member) => (
                     <motion.div
                       key={member._id}
-                      className={`backdrop-blur-sm p-6 rounded-2xl shadow-xl border hover:shadow-2xl cursor-pointer ${
-                        darkMode ? 'bg-gray-800/50 border-gray-700/50' : 'bg-white/80'
-                      }`}
+                      className={`backdrop-blur-sm p-6 rounded-2xl shadow-xl border hover:shadow-2xl cursor-pointer ${darkMode ? 'bg-gray-800/50 border-gray-700/50' : 'bg-white/80'}`}
                       whileHover={{ scale: 1.02 }}
-                      onClick={() => {
-                        setSelectedMember(member);
-                        setKpiModalOpen(true);
-                      }}
+                      onClick={() => fetchMemberDetails(member._id)}
                     >
                       <div className="flex items-start space-x-4 mb-4">
-                        <div
-                          className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                            darkMode ? 'bg-indigo-600/50 border-2 border-indigo-400/50' : 'bg-indigo-500/20'
-                          }`}
-                        >
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${darkMode ? 'bg-indigo-600/50 border-2 border-indigo-400/50' : 'bg-indigo-500/20'}`}>
                           <span className={`font-bold text-sm ${darkMode ? 'text-indigo-300' : 'text-indigo-600'}`}>
                             {member.name?.charAt(0)}
                           </span>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className={`font-bold text-lg truncate ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                            {member.name}
-                          </h3>
-                          <p className={`capitalize text-sm ${darkMode ? 'text-indigo-400' : 'text-indigo-600'}`}>
-                            {member.role?.replace('-', ' ')}
-                          </p>
+                          <h3 className={`font-bold text-lg truncate ${darkMode ? 'text-white' : 'text-gray-900'}`}>{member.name}</h3>
+                          <p className={`capitalize text-sm ${darkMode ? 'text-indigo-400' : 'text-indigo-600'}`}>{member.role?.replace('-', ' ')}</p>
                         </div>
                       </div>
 
@@ -396,22 +430,14 @@ const ManagerDashboard = () => {
                       </p>
 
                       {member.suggestion && (
-                        <div
-                          className={`mt-3 p-3 rounded-xl text-xs ${
-                            darkMode ? 'bg-yellow-900/50 text-yellow-300 border-yellow-800/50' : 'bg-yellow-100 text-yellow-800 border-yellow-200'
-                          }`}
-                        >
+                        <div className={`mt-3 p-3 rounded-xl text-xs ${darkMode ? 'bg-yellow-900/50 text-yellow-300 border border-yellow-800/50' : 'bg-yellow-100 text-yellow-800 border border-yellow-200'}`}>
                           {member.suggestion}
                         </div>
                       )}
                     </motion.div>
                   ))
                 ) : (
-                  <div
-                    className={`backdrop-blur-sm col-span-full p-12 rounded-2xl border text-center ${
-                      darkMode ? 'bg-gray-800/50 border-gray-700/50' : 'bg-white/80'
-                    }`}
-                  >
+                  <div className={`backdrop-blur-sm col-span-full p-12 rounded-2xl border text-center ${darkMode ? 'bg-gray-800/50 border-gray-700/50' : 'bg-white/80'}`}>
                     <p className={darkMode ? 'text-gray-400' : 'text-gray-500'}>No team members yet. Add your first member!</p>
                   </div>
                 )}
@@ -427,16 +453,12 @@ const ManagerDashboard = () => {
                 <div className={`backdrop-blur-sm p-8 rounded-2xl shadow-xl border ${darkMode ? 'bg-gray-800/50 border-gray-700/50' : 'bg-white/80'}`}>
                   <h3 className={`text-2xl font-bold mb-6 ${darkMode ? 'text-white' : 'text-gray-900'}`}>HQ Staff KPI</h3>
                   <div className="space-y-4">
-                    <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                      File Disposal Rate
-                    </label>
+                    <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>File Disposal Rate</label>
                     <input
                       type="number"
                       value={kpis.fileDisposalRate}
                       onChange={(e) => setKpis({ ...kpis, fileDisposalRate: Number(e.target.value) })}
-                      className={`w-full p-3 rounded-xl border shadow-sm ${
-                        darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'
-                      }`}
+                      className={`w-full p-3 rounded-xl border shadow-sm ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
                     />
                   </div>
                 </div>
@@ -444,16 +466,12 @@ const ManagerDashboard = () => {
                 <div className={`backdrop-blur-sm p-8 rounded-2xl shadow-xl border ${darkMode ? 'bg-gray-800/50 border-gray-700/50' : 'bg-white/80'}`}>
                   <h3 className={`text-2xl font-bold mb-6 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Field Unit KPI</h3>
                   <div className="space-y-4">
-                    <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                      Physical Progress
-                    </label>
+                    <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Physical Progress</label>
                     <input
                       type="number"
                       value={kpis.physicalProgress}
                       onChange={(e) => setKpis({ ...kpis, physicalProgress: Number(e.target.value) })}
-                      className={`w-full p-3 rounded-xl border shadow-sm ${
-                        darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'
-                      }`}
+                      className={`w-full p-3 rounded-xl border shadow-sm ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
                     />
                   </div>
                 </div>
@@ -490,23 +508,17 @@ const ManagerDashboard = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div className={`p-4 rounded-xl border ${darkMode ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'}`}>
                     <p className={darkMode ? 'text-gray-400' : 'text-gray-700'}>Department</p>
-                    <p className={`font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                      {managerDepartment?.name || 'NA'}
-                    </p>
+                    <p className={`font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{managerDepartment?.name || 'NA'}</p>
                   </div>
 
                   <div className={`p-4 rounded-xl border ${darkMode ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'}`}>
                     <p className={darkMode ? 'text-gray-400' : 'text-gray-700'}>Project</p>
-                    <p className={`font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                      {managerProject?.name || 'NA'}
-                    </p>
+                    <p className={`font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{managerProject?.name || 'NA'}</p>
                   </div>
 
                   <div className={`p-4 rounded-xl border ${darkMode ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'}`}>
                     <p className={darkMode ? 'text-gray-400' : 'text-gray-700'}>Team Size</p>
-                    <p className={`font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                      {data.stats?.teamMembers || 0}
-                    </p>
+                    <p className={`font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{data.stats?.teamMembers || 0}</p>
                   </div>
 
                   <div className={`p-4 rounded-xl border ${darkMode ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'}`}>
@@ -520,67 +532,137 @@ const ManagerDashboard = () => {
         </main>
       </div>
 
+      {memberDetailsOpen && (
+        <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className={`w-full max-w-6xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl border ${darkMode ? 'bg-gray-900 border-gray-700 text-white' : 'bg-white border-gray-200 text-gray-900'}`}>
+            <div className="p-6 border-b border-black/10 dark:border-white/10 flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold">{memberDetails.member?.name || 'Member Details'}</h2>
+                <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{memberDetails.member?.email || ''}</p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setSelectedMember(memberDetails.member);
+                    setKpis({ fileDisposalRate: 0, physicalProgress: 0, suggestion: '' });
+                    setKpiModalOpen(true);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-semibold"
+                >
+                  Add KPI
+                </button>
+                <button
+                  onClick={() => setMemberDetailsOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-gray-200 dark:bg-gray-700"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+
+            {memberDetailsLoading ? (
+              <div className="p-10 text-center">Loading...</div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6">
+                <div className={`rounded-2xl p-5 border ${darkMode ? 'border-gray-700 bg-gray-800/40' : 'border-gray-200 bg-gray-50'}`}>
+                  <h3 className="text-lg font-semibold mb-4">Member Info</h3>
+                  <div className="space-y-3 text-sm">
+                    <p><span className="font-semibold">Role:</span> {memberDetails.member?.role || 'NA'}</p>
+                    <p><span className="font-semibold">Department:</span> {memberDetails.member?.departmentId?.name || 'NA'}</p>
+                    <p><span className="font-semibold">Project:</span> {memberDetails.member?.projectId?.name || 'NA'}</p>
+                    <p><span className="font-semibold">Unit:</span> {memberDetails.member?.unit || 'NA'}</p>
+                    <p><span className="font-semibold">Phone:</span> {memberDetails.member?.phone || 'NA'}</p>
+                    <p><span className="font-semibold">Avg Performance:</span> {memberDetails.avgProgress || 0}%</p>
+                  </div>
+                </div>
+
+                <div className={`lg:col-span-2 rounded-2xl p-5 border ${darkMode ? 'border-gray-700 bg-gray-800/40' : 'border-gray-200 bg-gray-50'}`}>
+                  <h3 className="text-lg font-semibold mb-4">Assigned Tasks</h3>
+                  <div className="space-y-4">
+                    {memberDetails.tasks?.length > 0 ? (
+                      memberDetails.tasks.map((task) => (
+                        <div key={task._id} className={`rounded-2xl p-4 border ${darkMode ? 'border-gray-700 bg-gray-900/50' : 'border-gray-200 bg-white'}`}>
+                          <div className="flex items-start justify-between gap-4">
+                            <div>
+                              <h4 className="font-bold text-lg">{task.title}</h4>
+                              <p className="text-sm opacity-80">{task.description}</p>
+                            </div>
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                              task.status === 'completed'
+                                ? 'bg-green-100 text-green-700'
+                                : task.status === 'in-progress'
+                                  ? 'bg-yellow-100 text-yellow-700'
+                                  : 'bg-gray-100 text-gray-700'
+                            }`}>
+                              {task.status}
+                            </span>
+                          </div>
+
+                          <div className="mt-4 flex items-center justify-between text-sm">
+                            <p><span className="font-semibold">Progress:</span> {task.progress || 0}%</p>
+                            <p>
+                              <span className="font-semibold">Week:</span> {new Date(task.weekStart).toLocaleDateString()} - {new Date(task.weekEnd).toLocaleDateString()}
+                            </p>
+                          </div>
+
+                          <div className="mt-3 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                            <div className="h-2 rounded-full bg-indigo-600" style={{ width: `${task.progress || 0}%` }} />
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-gray-500">No tasks found for this member.</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className={`lg:col-span-3 rounded-2xl p-5 border ${darkMode ? 'border-gray-700 bg-gray-800/40' : 'border-gray-200 bg-gray-50'}`}>
+                  <h3 className="text-lg font-semibold mb-4">Evidence Uploaded</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {memberDetails.evidences?.length > 0 ? (
+                      memberDetails.evidences.map((ev) => (
+                        <div key={ev._id} className={`rounded-2xl p-4 border ${darkMode ? 'border-gray-700 bg-gray-900/50' : 'border-gray-200 bg-white'}`}>
+                          <h4 className="font-bold">{ev.title}</h4>
+                          <p className="text-sm opacity-80 mt-1">{ev.notes}</p>
+                          <p className="text-sm mt-2"><span className="font-semibold">Task:</span> {ev.taskId?.title || 'NA'}</p>
+                          <p className="text-sm"><span className="font-semibold">Status:</span> {ev.taskId?.status || 'NA'}</p>
+                          {ev.fileUrl && (
+                            <a href={ev.fileUrl} target="_blank" rel="noreferrer" className="text-indigo-500 text-sm underline mt-2 inline-block">
+                              View File
+                            </a>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-gray-500">No evidence uploaded yet.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <dialog id="add-member-modal" className={`p-0 ${darkMode ? 'bg-gray-900/90' : 'bg-white/95'} backdrop:bg-black/50`}>
         <div className={`p-8 rounded-3xl shadow-2xl max-w-md mx-auto mt-20 max-h-[90vh] overflow-y-auto ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border`}>
           <h2 className={`text-2xl font-bold mb-6 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Add Team Member</h2>
           <form onSubmit={handleAddMember} className="space-y-4">
-            <input
-              type="text"
-              placeholder="Full Name"
-              value={newMember.name}
-              onChange={(e) => setNewMember({ ...newMember, name: e.target.value })}
-              className={`w-full p-3 rounded-xl border shadow-sm ${
-                darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'
-              }`}
-              required
-            />
-            <input
-              type="email"
-              placeholder="Email"
-              value={newMember.email}
-              onChange={(e) => setNewMember({ ...newMember, email: e.target.value })}
-              className={`w-full p-3 rounded-xl border shadow-sm ${
-                darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'
-              }`}
-              required
-            />
-            <select
-              value={newMember.role}
-              onChange={(e) => setNewMember({ ...newMember, role: e.target.value })}
-              className={`w-full p-3 rounded-xl border shadow-sm ${
-                darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'
-              }`}
-            >
+            <input type="text" placeholder="Full Name" value={newMember.name} onChange={(e) => setNewMember({ ...newMember, name: e.target.value })} className={`w-full p-3 rounded-xl border shadow-sm ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`} required />
+            <input type="email" placeholder="Email" value={newMember.email} onChange={(e) => setNewMember({ ...newMember, email: e.target.value })} className={`w-full p-3 rounded-xl border shadow-sm ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`} required />
+            <select value={newMember.role} onChange={(e) => setNewMember({ ...newMember, role: e.target.value })} className={`w-full p-3 rounded-xl border shadow-sm ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}>
               <option value="hq">HQ Staff</option>
               <option value="supervisor">Supervisor</option>
-              <option value="field-engineer">Field Engineer</option>
+              <option value="field_engineer">Field Engineer</option>
               <option value="technician">Technician</option>
+              <option value="employee">Employee</option>
             </select>
-            <input
-              type="number"
-              placeholder="Initial Progress 0-100"
-              value={newMember.progress}
-              onChange={(e) => setNewMember({ ...newMember, progress: Number(e.target.value) })}
-              className={`w-full p-3 rounded-xl border shadow-sm ${
-                darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'
-              }`}
-              min="0"
-              max="100"
-            />
+            <input type="number" placeholder="Initial Progress 0-100" value={newMember.progress} onChange={(e) => setNewMember({ ...newMember, progress: Number(e.target.value) })} className={`w-full p-3 rounded-xl border shadow-sm ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`} min="0" max="100" />
             <div className="flex gap-3 pt-4">
-              <button
-                type="button"
-                onClick={() => document.getElementById('add-member-modal').close()}
-                className={`flex-1 py-3 rounded-xl font-medium shadow-sm ${
-                  darkMode ? 'bg-gray-700 border-gray-600 text-gray-200 hover:bg-gray-600' : 'bg-gray-200 border-gray-300 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
+              <button type="button" onClick={() => document.getElementById('add-member-modal').close()} className={`flex-1 py-3 rounded-xl font-medium shadow-sm ${darkMode ? 'bg-gray-700 border-gray-600 text-gray-200 hover:bg-gray-600' : 'bg-gray-200 border-gray-300 text-gray-700 hover:bg-gray-300'}`}>
                 Cancel
               </button>
-              <button
-                type="submit"
-                className="flex-1 py-3 rounded-xl font-bold shadow-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white"
-              >
+              <button type="submit" className="flex-1 py-3 rounded-xl font-bold shadow-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
                 Add Member
               </button>
             </div>
@@ -599,9 +681,7 @@ const ManagerDashboard = () => {
               placeholder="File Disposal Rate"
               value={kpis.fileDisposalRate}
               onChange={(e) => setKpis({ ...kpis, fileDisposalRate: Number(e.target.value) })}
-              className={`w-full p-3 rounded-xl border shadow-sm ${
-                darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'
-              }`}
+              className={`w-full p-3 rounded-xl border shadow-sm ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
               required
             />
             <input
@@ -609,26 +689,20 @@ const ManagerDashboard = () => {
               placeholder="Physical Progress"
               value={kpis.physicalProgress}
               onChange={(e) => setKpis({ ...kpis, physicalProgress: Number(e.target.value) })}
-              className={`w-full p-3 rounded-xl border shadow-sm ${
-                darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'
-              }`}
+              className={`w-full p-3 rounded-xl border shadow-sm ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
               required
             />
             <textarea
               placeholder="Suggestion/Feedback"
               value={kpis.suggestion}
               onChange={(e) => setKpis({ ...kpis, suggestion: e.target.value })}
-              className={`w-full p-3 rounded-xl border shadow-sm h-24 resize-none ${
-                darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'
-              }`}
+              className={`w-full p-3 rounded-xl border shadow-sm h-24 resize-none ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
             />
             <div className="flex gap-3 pt-4">
               <button
                 type="button"
                 onClick={() => setKpiModalOpen(false)}
-                className={`flex-1 py-3 rounded-xl font-medium shadow-sm ${
-                  darkMode ? 'bg-gray-700 border-gray-600 text-gray-200 hover:bg-gray-600' : 'bg-gray-200 border-gray-300 text-gray-700 hover:bg-gray-300'
-                }`}
+                className={`flex-1 py-3 rounded-xl font-medium shadow-sm ${darkMode ? 'bg-gray-700 border-gray-600 text-gray-200 hover:bg-gray-600' : 'bg-gray-200 border-gray-300 text-gray-700 hover:bg-gray-300'}`}
               >
                 Cancel
               </button>
@@ -642,6 +716,47 @@ const ManagerDashboard = () => {
           </form>
         </div>
       </dialog>
+
+      {showTaskModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl dark:bg-gray-900 dark:text-white">
+            <div className="p-8">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold">Assign Weekly Task</h2>
+                <button
+                  type="button"
+                  onClick={() => setShowTaskModal(false)}
+                  className="text-gray-500 hover:text-gray-800 text-2xl leading-none"
+                >
+                  ×
+                </button>
+              </div>
+              <form onSubmit={handleAssignTask} className="space-y-4">
+                <input type="text" placeholder="Task Title" value={taskForm.title} onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })} className="w-full p-3 border rounded-xl text-gray-900" required />
+                <textarea placeholder="Description" value={taskForm.description} onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })} className="w-full p-3 border rounded-xl text-gray-900" />
+                <input type="date" value={taskForm.weekStart} onChange={(e) => setTaskForm({ ...taskForm, weekStart: e.target.value })} className="w-full p-3 border rounded-xl text-gray-900" required />
+                <input type="date" value={taskForm.weekEnd} onChange={(e) => setTaskForm({ ...taskForm, weekEnd: e.target.value })} className="w-full p-3 border rounded-xl text-gray-900" required />
+                <select value={taskForm.memberId} onChange={(e) => setTaskForm({ ...taskForm, memberId: e.target.value })} className="w-full p-3 border rounded-xl text-gray-900" required>
+                  <option value="">Select Member</option>
+                  {data.members?.map((m) => (
+                    <option key={m._id} value={m._id}>
+                      {m.name} ({m.role})
+                    </option>
+                  ))}
+                </select>
+                <div className="flex gap-3 pt-2">
+                  <button type="submit" className="flex-1 bg-indigo-600 text-white py-3 rounded-xl">
+                    Assign
+                  </button>
+                  <button type="button" onClick={() => setShowTaskModal(false)} className="flex-1 bg-gray-200 py-3 rounded-xl">
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

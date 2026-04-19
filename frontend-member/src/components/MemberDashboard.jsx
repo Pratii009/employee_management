@@ -1,18 +1,21 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { motion } from 'framer-motion';
 
 export default function MemberDashboard() {
+  const [tasks, setTasks] = useState([]);
+  const [selectedTaskId, setSelectedTaskId] = useState('');
+  const [taskStatus, setTaskStatus] = useState('pending');
+  const [progress, setProgress] = useState(0);
+  const [evidence, setEvidence] = useState('');
   const [activeSection, setActiveSection] = useState('dashboard');
   const [loading, setLoading] = useState(true);
+  const [theme, setTheme] = useState(() => localStorage.getItem('memberTheme') || 'light');
   const [data, setData] = useState({
     member: {},
     tasks: [],
     evidences: [],
     stats: { totalTasks: 0, completedTasks: 0, pendingTasks: 0, avgProgress: 0 }
   });
-  const [selectedTask, setSelectedTask] = useState(null);
-  const [progressForm, setProgressForm] = useState({ progress: 0, status: 'In Progress' });
   const [evidenceForm, setEvidenceForm] = useState({
     taskId: '',
     title: '',
@@ -24,8 +27,8 @@ export default function MemberDashboard() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    fetchDashboard();
-  }, [refreshKey]);
+    localStorage.setItem('memberTheme', theme);
+  }, [theme]);
 
   const fetchDashboard = async () => {
     try {
@@ -45,19 +48,40 @@ export default function MemberDashboard() {
     }
   };
 
-  const handleUpdateProgress = async (e) => {
+  const fetchTasks = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get('http://localhost:5000/api/tasks/member', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setTasks(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboard();
+    fetchTasks();
+  }, [refreshKey]);
+
+  const handleTaskUpdate = async (e) => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
-      await axios.put(
-        `http://localhost:5000/api/member/tasks/${selectedTask._id}/progress`,
-        progressForm,
+      await axios.patch(
+        `http://localhost:5000/api/tasks/${selectedTaskId}/status`,
+        { status: taskStatus, progress, evidence },
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      setSelectedTaskId('');
+      setTaskStatus('pending');
+      setProgress(0);
+      setEvidence('');
       setRefreshKey((prev) => prev + 1);
-      setSelectedTask(null);
+      alert('✅ Task updated!');
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to update progress');
+      alert('Error: ' + (err.response?.data?.error || 'Failed to update task'));
     }
   };
 
@@ -70,7 +94,6 @@ export default function MemberDashboard() {
         evidenceForm,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setRefreshKey((prev) => prev + 1);
       setEvidenceForm({
         taskId: '',
         title: '',
@@ -79,6 +102,8 @@ export default function MemberDashboard() {
         fileName: '',
         fileType: ''
       });
+      setRefreshKey((prev) => prev + 1);
+      alert('✅ Evidence submitted!');
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to save evidence');
     }
@@ -91,30 +116,61 @@ export default function MemberDashboard() {
   };
 
   const member = data.member || {};
-  const tasks = data.tasks || [];
-  const evidences = data.evidences || [];
+
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter((t) => t.status?.toLowerCase() === 'completed').length;
+  const pendingTasks = tasks.filter((t) => t.status?.toLowerCase() === 'pending').length;
+  const avgProgress = totalTasks
+    ? Math.round(tasks.reduce((sum, t) => sum + (t.progress || 0), 0) / totalTasks)
+    : 0;
+
+  const isDark = theme === 'dark';
+
+  const pageClass = isDark
+    ? 'flex min-h-screen bg-slate-950 text-slate-100'
+    : 'flex min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 text-gray-900';
+
+  const cardClass = isDark
+    ? 'bg-slate-900 border border-slate-800 text-slate-100'
+    : 'bg-white text-gray-900';
+
+  const mutedText = isDark ? 'text-slate-400' : 'text-gray-500';
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 text-gray-900">
-      <aside className="w-64 bg-gradient-to-b from-indigo-700 via-purple-800 to-indigo-900 text-white">
+    <div className={pageClass}>
+      <aside className={isDark ? 'w-64 bg-slate-900 text-white border-r border-slate-800' : 'w-64 bg-gradient-to-b from-indigo-700 via-purple-800 to-indigo-900 text-white'}>
         <div className="h-16 flex items-center justify-center border-b border-white/20 font-bold">
           Member Portal
         </div>
-        <div className="p-4 space-y-2">
+
+        <div className="p-4 space-y-3">
+          <button
+            onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+            className="w-full px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 transition"
+          >
+            {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
+          </button>
+
           {['dashboard', 'tasks', 'evidence', 'profile'].map((item) => (
             <button
               key={item}
               onClick={() => setActiveSection(item)}
-              className={`w-full text-left px-4 py-3 rounded-xl ${activeSection === item ? 'bg-white/20' : 'hover:bg-white/10'}`}
+              className={`w-full text-left px-4 py-3 rounded-xl transition ${
+                activeSection === item ? 'bg-white/20' : 'hover:bg-white/10'
+              }`}
             >
               {item}
             </button>
           ))}
-          <button onClick={handleLogout} className="w-full mt-4 px-4 py-3 rounded-xl bg-red-500/20 hover:bg-red-500/30">
+
+          <button
+            onClick={handleLogout}
+            className="w-full mt-4 px-4 py-3 rounded-xl bg-red-500/20 hover:bg-red-500/30 transition"
+          >
             Logout
           </button>
         </div>
@@ -122,162 +178,233 @@ export default function MemberDashboard() {
 
       <main className="flex-1 p-6 space-y-6">
         {activeSection === 'dashboard' && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-white rounded-2xl p-6 shadow">Total Tasks: {data.stats.totalTasks}</div>
-            <div className="bg-white rounded-2xl p-6 shadow">Completed: {data.stats.completedTasks}</div>
-            <div className="bg-white rounded-2xl p-6 shadow">Pending: {data.stats.pendingTasks}</div>
-            <div className="bg-white rounded-2xl p-6 shadow">Avg Progress: {data.stats.avgProgress}%</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 to-purple-700 text-white p-6 shadow-xl">
+              <div className="absolute inset-0 bg-white/10 blur-3xl opacity-40" />
+              <div className="relative">
+                <p className="text-sm uppercase tracking-widest text-white/70">Total Tasks</p>
+                <div className="mt-3 text-4xl font-bold">{totalTasks}</div>
+                <div className="mt-4 h-2 rounded-full bg-white/20">
+                  <div className="h-2 rounded-full bg-white" style={{ width: '100%' }} />
+                </div>
+              </div>
+            </div>
+
+            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white p-6 shadow-xl">
+              <div className="relative">
+                <p className="text-sm uppercase tracking-widest text-white/70">Completed</p>
+                <div className="mt-3 text-4xl font-bold">{completedTasks}</div>
+                <p className="mt-3 text-white/80">Tasks finished successfully</p>
+              </div>
+            </div>
+
+            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-500 to-orange-600 text-white p-6 shadow-xl">
+              <div className="relative">
+                <p className="text-sm uppercase tracking-widest text-white/70">Pending</p>
+                <div className="mt-3 text-4xl font-bold">{pendingTasks}</div>
+                <p className="mt-3 text-white/80">Waiting for update</p>
+              </div>
+            </div>
+
+            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-pink-500 to-rose-600 text-white p-6 shadow-xl">
+              <div className="relative">
+                <p className="text-sm uppercase tracking-widest text-white/70">Avg Progress</p>
+                <div className="mt-3 text-4xl font-bold">{avgProgress}%</div>
+                <p className="mt-3 text-white/80">Overall completion</p>
+              </div>
+            </div>
           </div>
         )}
 
         {activeSection === 'tasks' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {tasks.length > 0 ? tasks.map((task) => (
-              <div key={task._id} className="bg-white rounded-2xl p-6 shadow">
-                <h4 className="text-xl font-semibold">{task.title}</h4>
-                <p>{task.description}</p>
-                <p className="text-sm mt-2">Project: {task.projectId?.name || 'NA'}</p>
-                <p className="text-sm">Department: {task.departmentId?.name || 'NA'}</p>
-                <p className="text-sm">Status: {task.status}</p>
-                <div className="w-full bg-gray-200 rounded-full h-3 my-3">
-                  <div className="bg-indigo-600 h-3 rounded-full" style={{ width: `${task.progress || 0}%` }} />
-                </div>
-                <p className="text-sm">{task.progress || 0}% complete</p>
-                <button
-                  onClick={() => {
-                    setSelectedTask(task);
-                    setProgressForm({ progress: task.progress || 0, status: task.status });
-                  }}
-                  className="mt-3 px-4 py-2 rounded-xl bg-indigo-600 text-white"
-                >
-                  Update Progress
-                </button>
-              </div>
-            )) : (
-              <div className="bg-white rounded-2xl p-6 shadow col-span-full">No tasks assigned yet.</div>
-            )}
-          </div>
-        )}
-
-        {activeSection === 'evidence' && (
           <div className="space-y-6">
-            <div className="bg-white rounded-2xl p-6 shadow">
-              <h3 className="text-2xl font-bold mb-4">Add Evidence</h3>
-              <form onSubmit={handleEvidenceSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className={`${cardClass} rounded-2xl p-6 shadow`}>
+              <h2 className="text-2xl font-bold mb-4">Update Task Status</h2>
+              <form onSubmit={handleTaskUpdate} className="space-y-4">
                 <select
-                  className="p-3 rounded-xl border"
-                  value={evidenceForm.taskId}
-                  onChange={(e) => setEvidenceForm({ ...evidenceForm, taskId: e.target.value })}
+                  value={selectedTaskId}
+                  onChange={(e) => setSelectedTaskId(e.target.value)}
+                  className="w-full p-3 border rounded-xl bg-transparent"
                   required
                 >
                   <option value="">Select Task</option>
                   {tasks.map((task) => (
-                    <option key={task._id} value={task._id}>{task.title}</option>
+                    <option key={task._id} value={task._id}>
+                      {task.title} ({task.status})
+                    </option>
                   ))}
                 </select>
+
+                <select
+                  value={taskStatus}
+                  onChange={(e) => setTaskStatus(e.target.value)}
+                  className="w-full p-3 border rounded-xl bg-transparent"
+                >
+                  <option value="pending">Pending</option>
+                  <option value="in-progress">In Progress</option>
+                  <option value="completed">Completed</option>
+                </select>
+
                 <input
-                  className="p-3 rounded-xl border"
-                  placeholder="Evidence Title"
-                  value={evidenceForm.title}
-                  onChange={(e) => setEvidenceForm({ ...evidenceForm, title: e.target.value })}
-                  required
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={progress}
+                  onChange={(e) => setProgress(Number(e.target.value))}
+                  className="w-full p-3 border rounded-xl bg-transparent"
+                  placeholder="Progress %"
                 />
-                <input
-                  className="p-3 rounded-xl border md:col-span-2"
-                  placeholder="File URL"
-                  value={evidenceForm.fileUrl}
-                  onChange={(e) => setEvidenceForm({ ...evidenceForm, fileUrl: e.target.value })}
-                />
-                <input
-                  className="p-3 rounded-xl border"
-                  placeholder="File Name"
-                  value={evidenceForm.fileName}
-                  onChange={(e) => setEvidenceForm({ ...evidenceForm, fileName: e.target.value })}
-                />
-                <input
-                  className="p-3 rounded-xl border"
-                  placeholder="File Type"
-                  value={evidenceForm.fileType}
-                  onChange={(e) => setEvidenceForm({ ...evidenceForm, fileType: e.target.value })}
-                />
+
                 <textarea
-                  className="p-3 rounded-xl border md:col-span-2"
-                  placeholder="Notes"
-                  value={evidenceForm.notes}
-                  onChange={(e) => setEvidenceForm({ ...evidenceForm, notes: e.target.value })}
+                  value={evidence}
+                  onChange={(e) => setEvidence(e.target.value)}
+                  className="w-full p-3 border rounded-xl bg-transparent"
+                  placeholder="Evidence / remarks"
                 />
-                <button type="submit" className="md:col-span-2 px-4 py-3 rounded-xl bg-green-600 text-white">
-                  Save Evidence
+
+                <button type="submit" className="w-full bg-green-600 text-white py-3 rounded-xl">
+                  Save Task Update
                 </button>
               </form>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {evidences.map((ev) => (
-                <div key={ev._id} className="bg-white rounded-2xl p-6 shadow">
-                  <h4 className="font-semibold">{ev.title}</h4>
-                  <p className="text-sm text-gray-600">{ev.notes}</p>
-                  <p className="text-sm">Task: {ev.taskId?.title || 'NA'}</p>
-                  {ev.fileUrl ? (
-                    <a className="text-indigo-600 text-sm underline" href={ev.fileUrl} target="_blank" rel="noreferrer">
-                      View File
-                    </a>
-                  ) : null}
+              {tasks.length > 0 ? (
+                tasks.map((task) => (
+                  <div key={task._id} className={`${cardClass} rounded-2xl p-6 shadow`}>
+                    <h4 className="text-xl font-semibold">{task.title}</h4>
+                    <p className={mutedText}>{task.description}</p>
+
+                    <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                      <div className="p-3 rounded-xl bg-black/5 dark:bg-white/5">
+                        <p className={mutedText}>Project</p>
+                        <p className="font-semibold">{task.projectId?.name || 'NA'}</p>
+                      </div>
+                      <div className="p-3 rounded-xl bg-black/5 dark:bg-white/5">
+                        <p className={mutedText}>Department</p>
+                        <p className="font-semibold">{task.departmentId?.name || 'NA'}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between text-sm">
+                      <p className="font-medium">Status: {task.status}</p>
+                      <p>{task.progress || 0}% complete</p>
+                    </div>
+
+                    <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-3 my-3">
+                      <div
+                        className="bg-indigo-600 h-3 rounded-full"
+                        style={{ width: `${task.progress || 0}%` }}
+                      />
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className={`${cardClass} rounded-2xl p-6 shadow col-span-full`}>
+                  No tasks assigned yet.
                 </div>
-              ))}
+              )}
             </div>
+          </div>
+        )}
+
+        {activeSection === 'evidence' && (
+          <div className={`${cardClass} rounded-2xl p-6 shadow`}>
+            <h2 className="text-2xl font-bold mb-4">Evidence</h2>
+
+            <form onSubmit={handleEvidenceSubmit} className="space-y-4">
+              <select
+                value={evidenceForm.taskId}
+                onChange={(e) => setEvidenceForm({ ...evidenceForm, taskId: e.target.value })}
+                className="w-full p-3 border rounded-xl bg-transparent"
+                required
+              >
+                <option value="">Select Task</option>
+                {tasks.map((task) => (
+                  <option key={task._id} value={task._id}>
+                    {task.title}
+                  </option>
+                ))}
+              </select>
+
+              <input
+                type="text"
+                placeholder="Evidence Title"
+                value={evidenceForm.title}
+                onChange={(e) => setEvidenceForm({ ...evidenceForm, title: e.target.value })}
+                className="w-full p-3 border rounded-xl bg-transparent"
+              />
+
+              <textarea
+                placeholder="Notes"
+                value={evidenceForm.notes}
+                onChange={(e) => setEvidenceForm({ ...evidenceForm, notes: e.target.value })}
+                className="w-full p-3 border rounded-xl bg-transparent"
+              />
+
+              <input
+                type="text"
+                placeholder="File URL"
+                value={evidenceForm.fileUrl}
+                onChange={(e) => setEvidenceForm({ ...evidenceForm, fileUrl: e.target.value })}
+                className="w-full p-3 border rounded-xl bg-transparent"
+              />
+
+              <input
+                type="text"
+                placeholder="File Name"
+                value={evidenceForm.fileName}
+                onChange={(e) => setEvidenceForm({ ...evidenceForm, fileName: e.target.value })}
+                className="w-full p-3 border rounded-xl bg-transparent"
+              />
+
+              <input
+                type="text"
+                placeholder="File Type"
+                value={evidenceForm.fileType}
+                onChange={(e) => setEvidenceForm({ ...evidenceForm, fileType: e.target.value })}
+                className="w-full p-3 border rounded-xl bg-transparent"
+              />
+
+              <button type="submit" className="w-full bg-indigo-600 text-white py-3 rounded-xl">
+                Submit Evidence
+              </button>
+            </form>
           </div>
         )}
 
         {activeSection === 'profile' && (
-          <div className="bg-white rounded-3xl p-8 shadow-2xl max-w-4xl">
+          <div className={`${cardClass} rounded-3xl p-8 shadow-2xl max-w-5xl`}>
             <h3 className="text-2xl font-bold mb-6">Profile</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-4 rounded-xl border"><p className="text-gray-500">Name</p><p className="font-semibold">{member.name || 'NA'}</p></div>
-              <div className="p-4 rounded-xl border"><p className="text-gray-500">Email</p><p className="font-semibold">{member.email || 'NA'}</p></div>
-              <div className="p-4 rounded-xl border"><p className="text-gray-500">Department</p><p className="font-semibold">{member.departmentId?.name || 'NA'}</p></div>
-              <div className="p-4 rounded-xl border"><p className="text-gray-500">Project</p><p className="font-semibold">{member.projectId?.name || 'NA'}</p></div>
-              <div className="p-4 rounded-xl border"><p className="text-gray-500">Role</p><p className="font-semibold">{member.role || 'NA'}</p></div>
-              <div className="p-4 rounded-xl border"><p className="text-gray-500">Current Progress</p><p className="font-semibold">{data.stats.avgProgress || 0}%</p></div>
+              <div className="p-4 rounded-xl border border-black/10 dark:border-white/10">
+                <p className={mutedText}>Name</p>
+                <p className="font-semibold">{member.name || 'NA'}</p>
+              </div>
+              <div className="p-4 rounded-xl border border-black/10 dark:border-white/10">
+                <p className={mutedText}>Email</p>
+                <p className="font-semibold">{member.email || 'NA'}</p>
+              </div>
+              <div className="p-4 rounded-xl border border-black/10 dark:border-white/10">
+                <p className={mutedText}>Department</p>
+                <p className="font-semibold">{member.departmentId?.name || 'NA'}</p>
+              </div>
+              <div className="p-4 rounded-xl border border-black/10 dark:border-white/10">
+                <p className={mutedText}>Project</p>
+                <p className="font-semibold">{member.projectId?.name || 'NA'}</p>
+              </div>
+              <div className="p-4 rounded-xl border border-black/10 dark:border-white/10">
+                <p className={mutedText}>Role</p>
+                <p className="font-semibold">{member.role || 'NA'}</p>
+              </div>
+              <div className="p-4 rounded-xl border border-black/10 dark:border-white/10">
+                <p className={mutedText}>Current Progress</p>
+                <p className="font-semibold">{avgProgress}%</p>
+              </div>
             </div>
           </div>
         )}
       </main>
-
-      {selectedTask && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-md">
-            <h3 className="text-xl font-bold mb-4">Update Progress</h3>
-            <form onSubmit={handleUpdateProgress} className="space-y-4">
-              <input
-                type="number"
-                min="0"
-                max="100"
-                className="w-full p-3 rounded-xl border"
-                value={progressForm.progress}
-                onChange={(e) => setProgressForm({ ...progressForm, progress: Number(e.target.value) })}
-              />
-              <select
-                className="w-full p-3 rounded-xl border"
-                value={progressForm.status}
-                onChange={(e) => setProgressForm({ ...progressForm, status: e.target.value })}
-              >
-                <option value="Pending">Pending</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Completed">Completed</option>
-              </select>
-              <div className="flex gap-3">
-                <button type="button" onClick={() => setSelectedTask(null)} className="flex-1 py-3 rounded-xl bg-gray-200">
-                  Cancel
-                </button>
-                <button type="submit" className="flex-1 py-3 rounded-xl bg-indigo-600 text-white">
-                  Save
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

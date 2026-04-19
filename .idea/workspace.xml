@@ -2,8 +2,11 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="824c9e2b-a835-45a5-b905-0779c16e9e6d" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/backend/server.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend/server.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/App.js" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/App.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/models/Task.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend/models/Task.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/routes/manager.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend/routes/manager.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/routes/tasks.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend/routes/tasks.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend-member/src/components/MemberDashboard.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend-member/src/components/MemberDashboard.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/components/ManagerDashboard.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/components/ManagerDashboard.jsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -13,9 +16,9 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 1
-}]]></component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 1
+}</component>
   <component name="ProjectId" id="3CPB7lWB4wjviFo3pINExmoQwEc" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
@@ -30,6 +33,7 @@
     "codeWithMe.voiceChat.enabledByDefault": "false",
     "git-widget-placeholder": "main",
     "ignore.virus.scanning.warn.message": "true",
+    "kotlin-language-version-configured": "true",
     "nodejs_package_manager_path": "npm"
   }
 }]]></component>
@@ -42,5 +46,8 @@
       <updated>1776277164916</updated>
     </task>
     <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
   </component>
 </project>
